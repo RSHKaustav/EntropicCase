@@ -2,7 +2,7 @@ import warnings
 from weakref import ref
 warnings.filterwarnings("ignore")
 
-import os
+
 import numpy as np
 import pandas as pd
 import CoolProp.CoolProp as CP
