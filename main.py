@@ -105,6 +105,15 @@ def tespy_solve(T_hs_in, T_hs_out, m_hs, T_hk_in, T_hk_out, m_hk, eta_s = 0.85):
 m_hk_design = Q_COND_INITIAL/(CP_Water * (T_SNK_OUT - T_SNK_IN))
 dp = tespy_solve(T_HS_IN_Assumed, T_SRC_OUT, M_SRC, T_SNK_IN, T_SNK_OUT, m_hk_design, ETA_S)
 
+#Off-Design Validation (Heat Source inlet = 52C, Q_cond = 950 kW)
+Q_OD = 950
+m_hk_od = Q_OD/(CP_Water * (T_SNK_OUT - T_SNK_IN))
+od = tespy_solve(52.0, T_SRC_OUT, M_SRC, T_SNK_IN, T_SNK_OUT, m_hk_od)
+print(f"  COP (off-design) = {od['COP']:.3f}")
+print(f"  P_comp           = {od['P_comp_kW']:.1f} kW")
+print(f"  Q_evap           = {od['Q_evap_kW']:.1f} kW")
+
+
 print(f"COP    = {dp['COP']:.2f}")
 print(f"Q_cond = {dp['Q_cond_kW']:.2f} kW")
 print(f"Q_evap = {dp['Q_evap_kW']:.2f} kW")
@@ -116,6 +125,7 @@ print(f"p_high = {dp['p_high_bar']:.2f} bar")
 
 DeltaT_evap = T_SRC_OUT - dp['T_ref_evap_C']
 DeltaT_cond = T_SNK_OUT - dp['T_ref_cond_C']
+Q_COND_Design = dp["Q_cond_kW"]
 
 # Coolprop Calculation
 def coolprop_calculation(T_hs_in, T_hs_out, Q_cond_kW,T_hk_in, T_hk_out, eta_s = 0.85):
@@ -184,6 +194,7 @@ df = pd.DataFrame(records, index=timestamp)
 df["T_src_in_C"] = T_src_in
 df["T_src_out_C"] = T_SRC_OUT
 df["Q_cond_kW"] = Q_COND_kW
+df["is_offdesign"] = (df["T_src_in_C"] < T_HS_IN_Assumed - 5) | (df["Q_cond_kW"] > 0.9 * Q_COND_Design)
 
 df.to_csv("results/heat_pump_performance.csv")
 
@@ -211,7 +222,9 @@ mon_energy = valid.resample("ME").agg(
 total_E_comp = valid["P_comp_kW"].sum()
 total_Q_cond = valid["Q_cond_kW"].sum()
 total_Q_evap = valid["Q_evap_kW"].sum()
-SCOP         = total_Q_cond / total_E_comp
+SCOP = total_Q_cond / total_E_comp
+
+od_hours = int(df["is_offdesign"].sum())
 
 print(f"\n  Annual SCOP        : {SCOP:.3f}")
 print(f"  Mean COP           : {valid['COP'].mean():.3f}")
